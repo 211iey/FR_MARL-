@@ -29,3 +29,6 @@ results/hpo/*.db
 
 # 데이터 (용량/잠금 이슈 → 실험 완료 후 추가)
 data/
+
+# Claude Code
+.claude
