@@ -1,0 +1,31 @@
+# 학습된 모델 (용량 계속 증가)
+models/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Optuna DB (재생성 가능)
+results/hpo/*.db
+
+# 데이터 (용량/잠금 이슈 → 실험 완료 후 추가)
+data/

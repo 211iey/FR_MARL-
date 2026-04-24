@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PPO Portfolio RL — 아키텍처 개요</title>
+<script>
+MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --card: #22263a;
+  --accent: #5b8dee; --accent2: #7c5cbf; --green: #3ecf8e;
+  --yellow: #f5a623; --red: #e05f5f;
+  --text: #e8eaf0; --muted: #8892a4; --border: #2e3349;
+  --radius: 12px; --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', sans-serif;
+       line-height: 1.65; font-size: 15px; }
+
+/* NAV */
+nav { position: sticky; top: 0; z-index: 100; background: rgba(15,17,23,.92);
+      backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+      display: flex; gap: 4px; padding: 10px 32px; overflow-x: auto; }
+nav a { color: var(--muted); text-decoration: none; font-size: 13px; padding: 6px 12px;
+        border-radius: 6px; white-space: nowrap; transition: all .2s; }
+nav a:hover, nav a.active { background: var(--card); color: var(--text); }
+
+/* LAYOUT */
+.page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 100px; }
+section { margin-bottom: 64px; }
+h1 { font-size: 2.2rem; font-weight: 700; background: linear-gradient(120deg, var(--accent), var(--accent2));
+     -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.4rem; font-weight: 600; margin-bottom: 20px; padding-bottom: 8px;
+     border-bottom: 1px solid var(--border); color: var(--text); }
+h3 { font-size: 1.05rem; font-weight: 600; margin: 20px 0 10px; color: var(--accent); }
+p { color: var(--muted); margin-bottom: 12px; }
+
+/* CARDS */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+        padding: 24px; margin-bottom: 16px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+
+/* BADGE */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-green { background: rgba(62,207,142,.15); color: var(--green); border: 1px solid rgba(62,207,142,.3); }
+.badge-yellow { background: rgba(245,166,35,.15); color: var(--yellow); border: 1px solid rgba(245,166,35,.3); }
+.badge-blue { background: rgba(91,141,238,.15); color: var(--accent); border: 1px solid rgba(91,141,238,.3); }
+.badge-red { background: rgba(224,95,95,.15); color: var(--red); border: 1px solid rgba(224,95,95,.3); }
+
+/* HERO */
+.hero { padding: 48px 0 40px; }
+.hero-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.meta-pill { background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+             padding: 4px 14px; font-size: 13px; color: var(--muted); }
+.meta-pill span { color: var(--text); }
+
+/* FORMULA BOX */
+.formula-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+               padding: 20px 24px; margin: 16px 0; overflow-x: auto; }
+.formula-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+
+/* CODE */
+code { font-family: var(--mono); font-size: 13px; background: var(--surface);
+       padding: 2px 6px; border-radius: 4px; color: #a8d8f0; }
+
+/* FLOW DIAGRAM (CSS) */
+.flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 20px 0; }
+.flow-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            padding: 10px 16px; font-size: 13px; text-align: center; min-width: 110px; }
+.flow-box.accent { border-color: var(--accent); background: rgba(91,141,238,.08); color: var(--accent); }
+.flow-box.green  { border-color: var(--green);  background: rgba(62,207,142,.08); color: var(--green); }
+.flow-box.yellow { border-color: var(--yellow); background: rgba(245,166,35,.08); color: var(--yellow); }
+.flow-box.purple { border-color: var(--accent2); background: rgba(124,92,191,.08); color: var(--accent2); }
+.flow-arrow { color: var(--muted); font-size: 20px; padding: 0 6px; }
+
+/* ROLLING WINDOW TIMELINE */
+.rw-grid { display: grid; grid-template-columns: 60px 1fr; gap: 10px; align-items: center; }
+.rw-label { font-size: 12px; color: var(--muted); text-align: right; padding-right: 8px; }
+.rw-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; }
+.rw-train { background: rgba(91,141,238,.5); display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #fff; }
+.rw-val   { background: rgba(245,166,35,.6); display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #fff; }
+.rw-test  { background: rgba(62,207,142,.5); display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #fff; }
+.rw-legend { display: flex; gap: 20px; margin-bottom: 16px; font-size: 12px; }
+.rw-legend-item { display: flex; align-items: center; gap: 6px; }
+.rw-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+/* STATE BOX */
+.state-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 16px 0; }
+.state-cell { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+              padding: 14px; text-align: center; }
+.state-cell .dim { font-size: 24px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+.state-cell .name { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.state-total { text-align: center; padding: 12px; background: rgba(91,141,238,.1);
+               border: 1px dashed var(--accent); border-radius: 8px; margin-top: 8px;
+               font-family: var(--mono); color: var(--accent); font-weight: 700; font-size: 18px; }
+
+/* TRANSFORMER DIAGRAM */
+.transformer { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 24px 0; }
+.tf-block { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            padding: 10px 32px; text-align: center; font-size: 13px; min-width: 240px; }
+.tf-block.highlight { border-color: var(--accent2); background: rgba(124,92,191,.1); }
+.tf-arrow { color: var(--muted); font-size: 20px; }
+.tf-side { display: flex; gap: 12px; justify-content: center; }
+
+/* PROGRESS */
+.progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.round-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.round-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+.round-card.done { border-color: var(--green); }
+.round-card.running { border-color: var(--yellow); animation: pulse 2s ease-in-out infinite; }
+.round-card.pending { opacity: .5; }
+@keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 rgba(245,166,35,0); } 50%{ box-shadow: 0 0 0 6px rgba(245,166,35,.1); } }
+.round-card .rn { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.round-card .metric { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--green); }
+.round-card .metric.neg { color: var(--red); }
+.round-card .metric-label { font-size: 11px; color: var(--muted); }
+
+/* FILE TREE */
+.tree { font-family: var(--mono); font-size: 13px; background: var(--surface); padding: 20px 24px;
+        border-radius: 10px; border: 1px solid var(--border); line-height: 2; }
+.tree .file { color: var(--text); }
+.tree .dir  { color: var(--accent); }
+.tree .done { color: var(--green); }
+.tree .new  { color: var(--yellow); }
+.tree .note { color: var(--muted); font-size: 12px; }
+
+/* TABLE */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 14px; background: var(--surface); color: var(--muted);
+     font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+tr:hover td { background: rgba(255,255,255,.02); }
+.val-pos { color: var(--green); font-family: var(--mono); }
+.val-neg { color: var(--red); font-family: var(--mono); }
+.val-neu { font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#overview" class="active">개요</a>
+  <a href="#pipeline">파이프라인</a>
+  <a href="#env">환경 구조</a>
+  <a href="#dsr">DSR 수식</a>
+  <a href="#ppo">PPO</a>
+  <a href="#hmm">HMM</a>
+  <a href="#transformer">Transformer</a>
+  <a href="#progress">진행 상황</a>
+</nav>
+
+<div class="page">
+
+<!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+<div class="hero" id="overview">
+  <h1>PPO Portfolio RL</h1>
+  <p style="font-size:16px; margin-top:12px; color:var(--muted);">
+    한국 코스피 ETF 14개를 대상으로 Differential Sharpe Ratio(DSR)를 보상함수로 삼아
+    PPO로 포트폴리오를 자동 운용하는 시스템.<br>
+    <em>TU Delft, M. Choi (2024)</em> 논문을 한국 시장에 적용 + HMM 국면 감지 추가.
+  </p>
+  <div class="hero-meta">
+    <div class="meta-pill">데이터 <span>2013-08 ~ 2026-04</span></div>
+    <div class="meta-pill">자산 <span>14개 코스피 ETF</span></div>
+    <div class="meta-pill">알고리즘 <span>PPO (SB3)</span></div>
+    <div class="meta-pill">라운드 <span>8 Rolling Windows</span></div>
+    <div class="meta-pill">상태 <span class="badge badge-yellow">학습 진행 중</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ 파일 구조 ═══════════════════════════ -->
+<section>
+  <h2>코드 구조</h2>
+  <div class="tree">
+<span class="dir">marl_experiment/</span><br>
+├── <span class="done">data/etf_log_returns_cleaned.csv</span>  <span class="note">← 3,051 거래일, 14자산 + 변동성 + KOSPI</span><br>
+├── <span class="new">requirements.txt</span><br>
+├── <span class="new">overview.html</span>  <span class="note">← 지금 이 파일</span><br>
+└── <span class="dir">script/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="done">portfolio_env_hmm.py</span>  <span class="note">← PortfolioEnv (수정 금지)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="done">HMM.py</span>               <span class="note">← HMM 국면 감지 (수정 금지)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">config.yaml</span>          <span class="note">← 중앙 설정 (경로·PPO·HPO)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">config.py</span>            <span class="note">← YAML 로더 + 검증</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">rolling_window.py</span>    <span class="note">← RoundSpec + 슬라이서</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">train.py</span>             <span class="note">← PPO 학습 루프 (지금 실행 중)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">hpo.py</span>               <span class="note">← Optuna HPO (선택)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">evaluate.py</span>          <span class="note">← 시각화 + 벤치마크 비교</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="new">feature_extractor.py</span> <span class="note">← Transformer (선택)</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 파이프라인 ═══════════════════════════ -->
+<section id="pipeline">
+  <h2>전체 파이프라인</h2>
+
+  <div class="card">
+    <h3>Rolling Window 구조</h3>
+    <div class="rw-legend">
+      <div class="rw-legend-item"><div class="rw-dot" style="background:rgba(91,141,238,.5)"></div> Train (5년)</div>
+      <div class="rw-legend-item"><div class="rw-dot" style="background:rgba(245,166,35,.6)"></div> Val (1년)</div>
+      <div class="rw-legend-item"><div class="rw-dot" style="background:rgba(62,207,142,.5)"></div> Test (1년)</div>
+    </div>
+    <!-- 전체 기간: 2013~2026 = 13년. 각 픽셀당 1년 -->
+    <div style="display:flex;flex-direction:column;gap:8px;" id="rwTimeline"></div>
+
+    <script>
+    const rounds = [
+      {n:1, train:"2013~2017", val:"2018", test:"2019", ts:2013, te:2017, vs:2018, ve:2018, ts2:2019, te2:2019},
+      {n:2, train:"2014~2018", val:"2019", test:"2020", ts:2014, te:2018, vs:2019, ve:2019, ts2:2020, te2:2020},
+      {n:3, train:"2015~2019", val:"2020", test:"2021", ts:2015, te:2019, vs:2020, ve:2020, ts2:2021, te2:2021},
+      {n:4, train:"2016~2020", val:"2021", test:"2022", ts:2016, te:2020, vs:2021, ve:2021, ts2:2022, te2:2022},
+      {n:5, train:"2017~2021", val:"2022", test:"2023", ts:2017, te:2021, vs:2022, ve:2022, ts2:2023, te2:2023},
+      {n:6, train:"2018~2022", val:"2023", test:"2024", ts:2018, te:2022, vs:2023, ve:2023, ts2:2024, te2:2024},
+      {n:7, train:"2019~2023", val:"2024", test:"2025", ts:2019, te:2023, vs:2024, ve:2024, ts2:2025, te2:2025},
+      {n:8, train:"2020~2024", val:"2025", test:"2026", ts:2020, te:2024, vs:2025, ve:2025, ts2:2026, te2:2026},
+    ];
+    const MIN=2013, MAX=2027, SPAN=MAX-MIN;
+    const tl = document.getElementById('rwTimeline');
+    rounds.forEach(r => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:64px 1fr;gap:8px;align-items:center;';
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:12px;color:var(--muted);text-align:right;';
+      lbl.textContent = `R${r.n}`;
+      const bar = document.createElement('div');
+      bar.style.cssText = 'display:flex;height:26px;border-radius:6px;overflow:hidden;width:100%;';
+      const trainW = ((r.te-r.ts+1)/SPAN*100).toFixed(1);
+      const valW   = ((r.ve-r.vs+1)/SPAN*100).toFixed(1);
+      const testW  = ((r.te2-r.ts2+0.25)/SPAN*100).toFixed(1);
+      const preW   = ((r.ts-MIN)/SPAN*100).toFixed(1);
+      bar.innerHTML = `
+        <div style="width:${preW}%;"></div>
+        <div style="width:${trainW}%;background:rgba(91,141,238,.45);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;">${r.train}</div>
+        <div style="width:${valW}%;background:rgba(245,166,35,.6);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;">${r.val}</div>
+        <div style="width:${testW}%;background:rgba(62,207,142,.5);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;">${r.test}</div>
+      `;
+      row.appendChild(lbl); row.appendChild(bar);
+      tl.appendChild(row);
+    });
+    </script>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <h3>각 Round 내부 흐름</h3>
+    <div class="flow" style="flex-wrap:wrap;gap:8px;padding:8px 0;">
+      <div class="flow-box accent">① Train 데이터<br>슬라이스</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box purple">② HMM 학습<br><small style="color:var(--muted)">Train only</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box accent">③ PPO × 5 seeds<br>학습</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box yellow">④ Val DSR 기준<br>best seed 선택</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">⑤ Test 평가<br>기록</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box accent">⑥ best weights<br>다음 Round 인계</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ ENV ═══════════════════════════ -->
+<section id="env">
+  <h2>포트폴리오 환경 (PortfolioEnv)</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>State 구성</h3>
+      <div class="state-grid">
+        <div class="state-cell"><div class="dim">14</div><div class="name">이전 비중 $w_{t-1}$</div></div>
+        <div class="state-cell"><div class="dim">840</div><div class="name">과거 60일 수익률<br>$R_{t-60:t}$ (14×60)</div></div>
+        <div class="state-cell"><div class="dim">3</div><div class="name">변동성 지표<br>vol20, vol20/vol60, vkospi</div></div>
+        <div class="state-cell"><div class="dim">3</div><div class="name">HMM 국면 확률<br>$p^{HMM}_t$</div></div>
+      </div>
+      <div class="state-total">총 860차원</div>
+    </div>
+
+    <div class="card">
+      <h3>Action → 비중</h3>
+      <div class="formula-box">
+        <div class="formula-label">Action Space: $a \in [-10, 10]^{14}$</div>
+        $$w_i = \text{softmax}(a)_i = \frac{e^{a_i}}{\displaystyle\sum_{j=1}^{14} e^{a_j}}$$
+        <p style="font-size:12px;margin-top:8px;">logit 범위로 softmax 온도 조절 효과. $\sum w_i = 1$ 보장.</p>
+      </div>
+      <div class="formula-box">
+        <div class="formula-label">거래비용 차감</div>
+        $$c_t = 0.00015 \times \sum_{i=1}^{14}|w_i^{new} - w_i^{old}|$$
+        $$r_t^{net} = \mathbf{w}_t^\top \mathbf{ret}_t - c_t$$
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>포트폴리오 가치 업데이트</h3>
+    <div class="formula-box">
+      $$P_t = P_{t-1} \cdot e^{r_t^{net}}$$
+    </div>
+    <p style="font-size:13px;">로그수익률을 지수변환하여 복리 효과 정확히 반영.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ DSR ═══════════════════════════ -->
+<section id="dsr">
+  <h2>Reward: Differential Sharpe Ratio (DSR)</h2>
+  <p>Sharpe Ratio를 매 스텝 보상으로 분해할 수 있는 유일한 방법. 논문 수식 3.4~3.7.</p>
+
+  <div class="card">
+    <h3>지수이동평균 업데이트 ($\eta = 1/252$)</h3>
+    <div class="formula-box">
+      $$\delta_t = r_t - A_{t-1}, \qquad \delta_t^{(2)} = r_t^2 - B_{t-1}$$
+      $$A_t = A_{t-1} + \eta\,\delta_t \qquad\text{(수익률 EMA)}$$
+      $$B_t = B_{t-1} + \eta\,\delta_t^{(2)} \qquad\text{(수익률² EMA)}$$
+    </div>
+
+    <h3>DSR 계산</h3>
+    <div class="formula-box">
+      $$\text{DSR}_t = \frac{B_{t-1}\,\delta_t - \tfrac{1}{2}\,A_{t-1}\,\delta_t^{(2)}}{\bigl(B_{t-1} - A_{t-1}^2\bigr)^{3/2}}$$
+      $$\text{reward}_t = \text{clip}(\text{DSR}_t,\;{-10},\;{+10})$$
+    </div>
+
+    <h3>관계</h3>
+    <div class="formula-box">
+      $$\text{Sharpe} \approx \frac{A_T}{\sqrt{B_T - A_T^2}} \cdot \sqrt{252} \qquad\Rightarrow\qquad \sum_{t=1}^T \text{DSR}_t \propto \text{Sharpe}_T$$
+    </div>
+    <p style="font-size:13px;">DSR의 누적합이 최종 Sharpe와 비례하므로 매 스텝 최적화가 곧 Sharpe 최대화.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ PPO ═══════════════════════════ -->
+<section id="ppo">
+  <h2>PPO 알고리즘</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>목적함수 (Clipped Surrogate)</h3>
+      <div class="formula-box">
+        $$r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_\text{old}}(a_t|s_t)}$$
+        $$L^{\text{CLIP}}(\theta) = \mathbb{E}_t\!\left[\min\!\left(r_t(\theta)\hat{A}_t,\ \text{clip}\!\left(r_t(\theta),1{-}\epsilon,1{+}\epsilon\right)\hat{A}_t\right)\right]$$
+        <p style="font-size:12px;margin-top:8px;">$\epsilon = 0.25$, 정책 업데이트 보수적 제한.</p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>하이퍼파라미터 (논문 Table 3.2)</h3>
+      <table>
+        <tr><th>파라미터</th><th>값</th></tr>
+        <tr><td>learning rate</td><td class="val-neu">3e-4</td></tr>
+        <tr><td>gamma ($\gamma$)</td><td class="val-neu">0.9</td></tr>
+        <tr><td>gae_lambda</td><td class="val-neu">0.9</td></tr>
+        <tr><td>clip_range ($\epsilon$)</td><td class="val-neu">0.25</td></tr>
+        <tr><td>ent_coef</td><td class="val-neu">0.035</td></tr>
+        <tr><td>n_steps</td><td class="val-neu">2,048</td></tr>
+        <tr><td>batch_size</td><td class="val-neu">64</td></tr>
+        <tr><td>n_epochs</td><td class="val-neu">2</td></tr>
+        <tr><td>net_arch</td><td class="val-neu">[64, 64]</td></tr>
+        <tr><td>total_timesteps</td><td class="val-neu">1,454,400</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>엔트로피 보너스</h3>
+    <div class="formula-box">
+      $$L(\theta) = L^{\text{CLIP}}(\theta) - c_1 L^{\text{VF}}(\theta) + c_2 H[\pi_\theta](\cdot|s_t)$$
+    </div>
+    <p style="font-size:13px;">$c_2 = 0.035$로 탐색 장려. 포트폴리오 다양성 유지에 효과적.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ HMM ═══════════════════════════ -->
+<section id="hmm">
+  <h2>HMM 시장 국면 감지</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>Gaussian HMM</h3>
+      <div class="formula-box">
+        <div class="formula-label">관측 변수: (kospi 수익률, vkospi) → StandardScaler</div>
+        $$P(o_t | z_t = k) = \mathcal{N}(o_t;\;\mu_k,\;\Sigma_k)$$
+        $$P(z_t = j | z_{t-1} = i) = A_{ij} \quad\text{(전이 행렬)}$$
+      </div>
+      <p style="font-size:13px;">$n\_regimes = 3$ (Bull / Neutral / Bear 추정)</p>
+    </div>
+    <div class="card">
+      <h3>State 주입 방식</h3>
+      <div class="flow" style="flex-direction:column;align-items:flex-start;gap:12px;">
+        <div class="flow-box accent" style="width:100%;">Train 데이터만으로 HMM 학습</div>
+        <div style="padding-left:20px;color:var(--muted);font-size:13px;">↓ 각 Round마다 재학습 (미래 누출 방지)</div>
+        <div class="flow-box purple" style="width:100%;">$p_t^{HMM} = \text{softmax}(P(z_t|o_{1:t}))$</div>
+        <div style="padding-left:20px;color:var(--muted);font-size:13px;">↓ State의 마지막 3차원으로 concat</div>
+        <div class="flow-box green" style="width:100%;">$s_t = [\ldots,\; p_t^{bull},\; p_t^{neutral},\; p_t^{bear}]$</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ TRANSFORMER ═══════════════════════════ -->
+<section id="transformer">
+  <h2>Transformer Feature Extractor (선택적)</h2>
+  <p>기본값은 MLP. <code>--feature-extractor transformer</code> 플래그로 교체.</p>
+
+  <div class="card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+      <div>
+        <h3>처리 흐름</h3>
+        <div class="transformer">
+          <div class="tf-block" style="background:rgba(91,141,238,.08);border-color:var(--accent);">
+            obs (860,)<br><small style="color:var(--muted)">State 전체</small>
+          </div>
+          <div class="tf-arrow">↓ split</div>
+          <div class="tf-side">
+            <div class="tf-block highlight">past_ret<br>(60 × 14)<br><small style="color:var(--muted)">시퀀스</small></div>
+            <div class="tf-block">weights + vol + regime<br>(17,)<br><small style="color:var(--muted)">non-seq</small></div>
+          </div>
+          <div class="tf-arrow">↓</div>
+          <div class="tf-block highlight">Linear(14 → 64)<br>+ Learnable PE</div>
+          <div class="tf-arrow">↓</div>
+          <div class="tf-block highlight">TransformerEncoder<br>(2 layers, 4 heads, d=64)</div>
+          <div class="tf-arrow">↓ Global Average Pool</div>
+          <div class="tf-side">
+            <div class="tf-block highlight">(64,)</div>
+            <div class="tf-block">(17,)</div>
+          </div>
+          <div class="tf-arrow">↓ concat → LayerNorm → Linear → GELU</div>
+          <div class="tf-block" style="background:rgba(62,207,142,.08);border-color:var(--green);">
+            features (128,)<br><small style="color:var(--muted)">→ Actor/Critic MLP 입력</small>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>Positional Encoding</h3>
+        <div class="formula-box">
+          $$\text{PE} \in \mathbb{R}^{1 \times 60 \times 64} \quad\text{(학습 가능)}$$
+          $$x_i = \text{Linear}(ret_i) + \text{PE}_i$$
+        </div>
+        <p style="font-size:13px;">시퀀스 길이(60)가 고정이므로 학습 가능 PE 사용. Sinusoidal PE 대비 데이터에 맞게 적응.</p>
+        <h3 style="margin-top:20px;">Self-Attention</h3>
+        <div class="formula-box">
+          $$\text{Attn}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)\!V$$
+          $$d_k = 64/4 = 16 \quad (4\text{ heads})$$
+        </div>
+        <h3 style="margin-top:20px;">파라미터 요약</h3>
+        <table>
+          <tr><th>구성</th><th>파라미터</th></tr>
+          <tr><td>d_model</td><td class="val-neu">64</td></tr>
+          <tr><td>nhead</td><td class="val-neu">4</td></tr>
+          <tr><td>num_layers</td><td class="val-neu">2</td></tr>
+          <tr><td>features_dim</td><td class="val-neu">128</td></tr>
+          <tr><td>dropout</td><td class="val-neu">0.1</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ PROGRESS ═══════════════════════════ -->
+<section id="progress">
+  <h2>현재 실험 진행 상황</h2>
+  <div class="progress-header">
+    <span><span class="badge badge-yellow">● Full Run 진행 중</span> &nbsp; 맥북 CPU · mode=full · 5 seeds · 1,454,400 steps/seed</span>
+    <span style="color:var(--muted);font-size:13px;">예상 완료: ~13일</span>
+  </div>
+
+  <div class="round-cards">
+    <!-- Round 1: 완료 -->
+    <div class="round-card done">
+      <div class="rn">Round 1 · best seed: 1 <span class="badge badge-green">완료</span></div>
+      <div class="metric">+5.1%</div>
+      <div class="metric-label">Test 누적수익률</div>
+      <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div><span style="color:var(--muted)">Sharpe</span><br><span class="val-pos">0.564</span></div>
+        <div><span style="color:var(--muted)">MDD</span><br><span class="val-neg">-11.4%</span></div>
+        <div><span style="color:var(--muted)">Turnover</span><br><span class="val-neu">0.0052</span></div>
+        <div><span style="color:var(--muted)">Test 기간</span><br><span style="color:var(--text)">2019</span></div>
+      </div>
+    </div>
+    <!-- Round 2: 진행 중 -->
+    <div class="round-card running">
+      <div class="rn">Round 2 <span class="badge badge-yellow">진행 중</span></div>
+      <div class="metric" style="color:var(--yellow);">━━━</div>
+      <div class="metric-label">Test 기간: 2020</div>
+      <div style="margin-top:12px;font-size:12px;color:var(--muted);">
+        Train: 2014~2018<br>Val: 2019
+      </div>
+    </div>
+    <!-- Round 3~8: 대기 -->
+    <div class="round-card pending">
+      <div class="rn">Round 3</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2021<br>대기 중</div>
+    </div>
+    <div class="round-card pending">
+      <div class="rn">Round 4</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2022<br>대기 중</div>
+    </div>
+    <div class="round-card pending">
+      <div class="rn">Round 5</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2023<br>대기 중</div>
+    </div>
+    <div class="round-card pending">
+      <div class="rn">Round 6</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2024<br>대기 중</div>
+    </div>
+    <div class="round-card pending">
+      <div class="rn">Round 7</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2025<br>대기 중</div>
+    </div>
+    <div class="round-card pending">
+      <div class="rn">Round 8</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2026 (partial)<br>대기 중</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:24px;">
+    <h3>Round 1 결과 상세</h3>
+    <table>
+      <tr><th>항목</th><th>값</th><th>설명</th></tr>
+      <tr><td>Best Seed</td><td class="val-neu">1</td><td>Val DSR 기준 선택</td></tr>
+      <tr><td>Val DSR (best)</td><td class="val-neg">-39.38</td><td>탐색 보상 누적합</td></tr>
+      <tr><td>Test DSR 합</td><td class="val-neg">-6.33</td><td>Test 기간 보상 누적</td></tr>
+      <tr><td>Test Sharpe</td><td class="val-pos">0.564</td><td>연환산 (×√252)</td></tr>
+      <tr><td>Test 누적수익률</td><td class="val-pos">+5.14%</td><td>2019년 전체</td></tr>
+      <tr><td>Test MDD</td><td class="val-neg">-11.42%</td><td>최대 낙폭</td></tr>
+      <tr><td>Test Turnover</td><td class="val-neu">0.0052</td><td>평균 일일 회전율</td></tr>
+      <tr><td>Test 스텝 수</td><td class="val-neu">245 일</td><td>2019 거래일</td></tr>
+    </table>
+  </div>
+</section>
+
+</div><!-- .page -->
+
+<script>
+// Nav 활성화
+const sections = document.querySelectorAll('section, .hero');
+const navLinks = document.querySelectorAll('nav a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 80) current = s.id || 'overview';
+  });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+});
+</script>
+</body>
+</html>

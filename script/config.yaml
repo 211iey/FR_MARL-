@@ -1,0 +1,133 @@
+# ==========================================================
+# 한국 시장 포트폴리오 강화학습 - 설정 파일
+# ==========================================================
+# 경로는 이 파일 기준 상대 경로로 작성 (config.py가 절대 경로로 변환)
+
+paths:
+  data_csv:    "../data/etf_log_returns_cleaned.csv"
+  models_dir:  "../models"
+  results_dir: "../results"
+  hpo_dir:     "../results/hpo"
+  figures_dir: "../results/figures"
+
+# ----------------------------------------------------------
+# 데이터 구성
+# ----------------------------------------------------------
+data:
+  window: 60
+  n_regimes: 3
+  asset_cols:
+    - semicon
+    - bank
+    - car
+    - finance
+    - treasury3
+    - "ener&chem"
+    - iron
+    - wti
+    - gold
+    - copper
+    - necessities
+    - healthcare
+    - silver
+    - treasury10
+  vol_cols:
+    - vol20
+    - vol20_vol60
+    - vkospi
+  hmm_features:
+    - kospi
+    - vkospi
+
+# ----------------------------------------------------------
+# Rolling Window 스케줄
+# ----------------------------------------------------------
+#   Round k:
+#     Train [train_start_year + (k-1)*stride ~ train_end_year + (k-1)*stride]
+#     Val   [train_end_year + (k-1)*stride + 1 년]
+#     Test  [train_end_year + (k-1)*stride + 2 년]
+rolling_window:
+  train_start_year: 2013        # 첫 Round Train 시작 (2013-08-06부터 실데이터)
+  train_years: 5                # Train 윈도우 길이
+  val_years: 1
+  test_years: 1
+  stride_years: 1
+
+# ----------------------------------------------------------
+# 환경 (PortfolioEnv)
+# ----------------------------------------------------------
+env:
+  eta: 0.003968254              # 1/252
+  cost: 0.00015
+  dsr_clip: 10.0
+  action_logit_range: 10.0
+
+# ----------------------------------------------------------
+# PPO 기본 하이퍼파라미터 (논문 Table 3.2 + Appendix A)
+#   * HPO 생략 시 이 값으로 바로 학습
+#   * HPO 수행 시, best 결과를 수동으로 이 섹션에 반영
+# ----------------------------------------------------------
+ppo:
+  policy: "MlpPolicy"
+  learning_rate: 3.0e-4
+  gamma: 0.9
+  gae_lambda: 0.9
+  clip_range: 0.25
+  ent_coef: 0.035
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 2
+  net_arch: [64, 64]
+  verbose: 0
+
+# ----------------------------------------------------------
+# 학습 설정 (train.py)
+# ----------------------------------------------------------
+train:
+  total_timesteps: 1454400      # 논문 Appendix A (full mode)
+  total_timesteps_smoke: 100000 # 파이프라인 검증용 (smoke mode)
+  n_seeds: 5
+  eval_freq: 10000
+  feature_extractor: "mlp"      # "mlp" | "transformer"
+  transfer_weights: true        # Round k best seed → Round k+1 초기화 (논문 방식)
+
+# ----------------------------------------------------------
+# Transformer Feature Extractor (feature_extractor.py)
+# ----------------------------------------------------------
+transformer:
+  d_model: 64
+  nhead: 4
+  num_layers: 2
+  features_dim: 128
+  dropout: 0.1
+
+# ----------------------------------------------------------
+# Hyperparameter Optimization (hpo.py, Optuna 전용)
+#   * 선택적: 돌리지 않으면 ppo 섹션 기본값 사용됨
+#   * Round 1 Val에서만 탐색 (look-ahead bias 방지)
+# ----------------------------------------------------------
+hpo:
+  round_index: 0                # Round 1 = index 0
+  total_timesteps: 1454400      # full timesteps로 탐색
+  n_seeds_per_trial: 1          # 탐색 단계는 seed 1개 (best 조합은 이후 5 seeds 재학습)
+  n_trials: 30
+  metric: "val_dsr_mean"        # val_dsr_mean | val_sharpe | val_cum_return
+
+  # Pruning: 성능 낮은 trial 조기 종료 (full timesteps 실용화에 필수)
+  pruner: "hyperband"           # hyperband | median | none
+  pruner_warmup_steps: 100000
+
+  # Optuna persistence (중단/재개 가능)
+  storage: "sqlite:///../results/hpo/optuna.db"
+  study_name: "ppo_round1"
+
+  # 탐색 공간 (Optuna suggest_* API로 매핑)
+  param_space:
+    learning_rate:  {type: loguniform,  low: 1.0e-5, high: 1.0e-2}
+    ent_coef:       {type: uniform,     low: 0.0,    high: 0.2}
+    clip_range:     {type: uniform,     low: 0.1,    high: 0.4}
+    gamma:          {type: uniform,     low: 0.85,   high: 0.999}
+    gae_lambda:     {type: uniform,     low: 0.8,    high: 0.99}
+    n_steps:        {type: categorical, choices: [1024, 2048, 4096]}
+    batch_size:     {type: categorical, choices: [64, 128, 256]}
+    net_arch:       {type: categorical, choices: ["64,64", "128,128", "256,256"]}
