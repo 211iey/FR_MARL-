@@ -192,8 +192,21 @@ def main():
     rl_series = build_rl_series(daily_list)
     common_idx = df.index.intersection(rl_series.index)
     bench: dict[str, pd.Series] = {}
-    if "kospi" in df.columns:
-        bench["KOSPI"] = df.loc[common_idx, "kospi"].dropna()
+
+    # KODEX200: 별도 log-return CSV에서 로드 (없으면 skip)
+    bench_csv = cfg["paths"].get("benchmark_csv")
+    if bench_csv:
+        bench_path = Path(bench_csv)
+        if bench_path.exists():
+            bench_df = pd.read_csv(
+                bench_path, index_col=0, parse_dates=True
+            ).sort_index()
+            col = bench_df.columns[0]
+            bench_idx = common_idx.intersection(bench_df.index)
+            bench["KODEX200"] = bench_df.loc[bench_idx, col].dropna()
+        else:
+            print(f"[warning] benchmark_csv 없음: {bench_path}")
+
     asset_cols = cfg["data"]["asset_cols"]
     bench["Equal Weight"] = df.loc[common_idx, asset_cols].mean(axis=1).dropna()
 

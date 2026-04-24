@@ -4,11 +4,12 @@
 # 경로는 이 파일 기준 상대 경로로 작성 (config.py가 절대 경로로 변환)
 
 paths:
-  data_csv:    "../data/etf_log_returns_cleaned.csv"
-  models_dir:  "../models"
-  results_dir: "../results"
-  hpo_dir:     "../results/hpo"
-  figures_dir: "../results/figures"
+  data_csv:      "../data/etf_log_returns_cleaned.csv"
+  benchmark_csv: "../data/kodex200_log_returns.csv"
+  models_dir:    "../models"
+  results_dir:   "../results"
+  hpo_dir:       "../results/hpo"
+  figures_dir:   "../results/figures"
 
 # ----------------------------------------------------------
 # 데이터 구성
@@ -61,6 +62,10 @@ env:
   cost: 0.00015
   dsr_clip: 10.0
   action_logit_range: 10.0
+  # VecNormalize: train 시 보상만 동적 정규화 (obs는 PortfolioEnv에서 이미 설계됨)
+  vecnormalize:
+    enabled: true
+    clip_reward: 10.0
 
 # ----------------------------------------------------------
 # PPO 기본 하이퍼파라미터 (논문 Table 3.2 + Appendix A)
@@ -90,6 +95,26 @@ train:
   eval_freq: 10000
   feature_extractor: "mlp"      # "mlp" | "transformer"
   transfer_weights: true        # Round k best seed → Round k+1 초기화 (논문 방식)
+
+# ----------------------------------------------------------
+# Transformer Feature Extractor (feature_extractor.py)
+# ----------------------------------------------------------
+# ----------------------------------------------------------
+# Multi-Agent IPPO (marl_train.py)
+# ----------------------------------------------------------
+marl:
+  n_agents: 5
+
+  # λ sweep용 고정 기간 (Rolling Window와 독립)
+  train_start: "2013-01-01"
+  train_end:   "2019-12-31"
+  val_year:    2020
+  test_year:   2021
+
+  # λ sweep
+  lambdas:         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+  smoke_lambdas:   [0.0, 0.5]
+  diversity_modes: ["correlation", "tv"]
 
 # ----------------------------------------------------------
 # Transformer Feature Extractor (feature_extractor.py)

@@ -18,6 +18,7 @@ import pandas as pd
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.utils import set_random_seed
+from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, VecNormalize
 
 from HMM import train_market_hmm
 from config import load_config, parse_net_arch
@@ -75,6 +76,27 @@ def make_env(data_df, cfg, hmm_model, hmm_scaler) -> PortfolioEnv:
     )
 
 
+def wrap_train_env(env, cfg: dict) -> VecEnv:
+    """
+    학습용 env만 VecNormalize로 래핑 (reward 동적 정규화).
+
+    - norm_obs=False: PortfolioEnv의 obs는 이미 설계된 스케일
+    - norm_reward=True: DSR 분포에 따라 running μ,σ 로 정규화 → PPO 안정화
+    - val/test는 raw env 그대로 사용 → 실제 DSR sum 기준으로 best 모델 선정
+    """
+    vn_cfg = cfg["env"].get("vecnormalize", {})
+    if not vn_cfg.get("enabled", False):
+        return env
+    venv = DummyVecEnv([lambda e=env: e])
+    return VecNormalize(
+        venv,
+        norm_obs=False,
+        norm_reward=True,
+        clip_reward=float(vn_cfg.get("clip_reward", 10.0)),
+        gamma=float(cfg["ppo"]["gamma"]),
+    )
+
+
 def _build_policy_kwargs(cfg: dict) -> dict:
     """config.train.feature_extractor 값에 따라 policy_kwargs 구성."""
     kind = cfg["train"].get("feature_extractor", "mlp").lower()
@@ -88,6 +110,9 @@ def _build_policy_kwargs(cfg: dict) -> dict:
 
 def build_ppo(env, seed: int, cfg: dict, prev_params=None) -> PPO:
     p = cfg["ppo"]
+    # raw gym.Env가 들어오면 자동으로 VecNormalize 래핑
+    if not isinstance(env, VecEnv):
+        env = wrap_train_env(env, cfg)
     model = PPO(
         policy=p["policy"],
         env=env,
