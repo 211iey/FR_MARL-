@@ -148,13 +148,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 <nav>
   <a href="#overview" class="active">개요</a>
+  <a href="#rl-intro">강화학습 개요</a>
   <a href="#pipeline">파이프라인</a>
   <a href="#env">환경 구조</a>
   <a href="#dsr">DSR 수식</a>
   <a href="#ppo">PPO</a>
   <a href="#hmm">HMM</a>
   <a href="#transformer">Transformer</a>
-  <a href="#progress">진행 상황</a>
 </nav>
 
 <div class="page">
@@ -181,19 +181,234 @@ tr:hover td { background: rgba(255,255,255,.02); }
   <h2>코드 구조</h2>
   <div class="tree">
 <span class="dir">marl_experiment/</span><br>
-├── <span class="done">data/etf_log_returns_cleaned.csv</span>  <span class="note">← 3,051 거래일, 14자산 + 변동성 + KOSPI</span><br>
-├── <span class="new">requirements.txt</span><br>
-├── <span class="new">overview.html</span>  <span class="note">← 지금 이 파일</span><br>
+├── <span class="file">CLAUDE.md</span>  <span class="note">← 프로젝트 인수인계 문서</span><br>
+├── <span class="file">requirements.txt</span><br>
+├── <span class="dir">data/</span>  <span class="note">← gitignored</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="done">etf_log_returns_cleaned.csv</span>  <span class="note">← 3,051 거래일, 14자산 + 변동성 + KOSPI</span><br>
+├── <span class="dir">docs/</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="new">index.html</span>  <span class="note">← 지금 이 파일 (아키텍처 + 수식)</span><br>
+├── <span class="dir">results/</span>  <span class="note">← train.py 실행 후 생성</span><br>
+│&nbsp;&nbsp;&nbsp;├── <span class="file">rolling_window_results.csv</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="dir">daily/</span>  <span class="note">round_XX.pkl (evaluate.py용)</span><br>
 └── <span class="dir">script/</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="done">portfolio_env_hmm.py</span>  <span class="note">← PortfolioEnv (수정 금지)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="done">HMM.py</span>               <span class="note">← HMM 국면 감지 (수정 금지)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">config.yaml</span>          <span class="note">← 중앙 설정 (경로·PPO·HPO)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">config.py</span>            <span class="note">← YAML 로더 + 검증</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">rolling_window.py</span>    <span class="note">← RoundSpec + 슬라이서</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">train.py</span>             <span class="note">← PPO 학습 루프 (지금 실행 중)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">train.py</span>             <span class="note">← PPO 학습 루프</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">hpo.py</span>               <span class="note">← Optuna HPO (선택)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">evaluate.py</span>          <span class="note">← 시각화 + 벤치마크 비교</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="new">feature_extractor.py</span> <span class="note">← Transformer (선택)</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ RL 개요 (비개발자용) ═══════════════════════════ -->
+<section id="rl-intro">
+  <h2>강화학습이란? — 경제학 언어로</h2>
+
+  <!-- 핵심 루프 -->
+  <div class="card" style="margin-bottom:20px;">
+    <h3>기본 아이디어: 알고리즘 펀드매니저가 시장에서 학습한다</h3>
+    <p>강화학습은 <strong style="color:var(--text)">에이전트(알고리즘)</strong>가 <strong style="color:var(--text)">환경(시장)</strong>과 상호작용하면서 스스로 투자 전략을 개선하는 방법입니다. 인간 펀드매니저가 경험을 쌓듯이, 알고리즘은 수천 번의 시뮬레이션을 통해 학습합니다.</p>
+
+    <!-- 루프 다이어그램 -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0;margin:32px 0;">
+
+      <div style="display:flex;align-items:stretch;gap:0;width:100%;max-width:800px;">
+        <!-- 에이전트 박스 -->
+        <div style="flex:1;background:rgba(91,141,238,.1);border:2px solid var(--accent);border-radius:16px;padding:24px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">🤖</div>
+          <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:6px;">에이전트</div>
+          <div style="font-size:12px;color:var(--muted);">PPO 알고리즘<br>(신경망 기반 전략)</div>
+          <div style="margin-top:12px;background:var(--surface);border-radius:8px;padding:10px;font-size:12px;color:var(--muted);">
+            "어디에 얼마나 투자할지<br>결정하는 두뇌"
+          </div>
+        </div>
+
+        <!-- 화살표 영역 -->
+        <div style="display:flex;flex-direction:column;justify-content:space-between;padding:20px 0;min-width:140px;align-items:center;">
+          <!-- 위 화살표: 결정 -->
+          <div style="text-align:center;">
+            <div style="font-size:11px;color:var(--green);font-weight:600;margin-bottom:4px;">📤 투자 결정</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">14개 ETF 비중 배분</div>
+            <div style="font-size:22px;color:var(--green);">→</div>
+          </div>
+          <!-- 아래 화살표: 피드백 -->
+          <div style="text-align:center;">
+            <div style="font-size:22px;color:var(--yellow);">←</div>
+            <div style="font-size:11px;color:var(--yellow);font-weight:600;margin-top:4px;">📥 시장 반응</div>
+            <div style="font-size:11px;color:var(--muted);">수익/손실 + 새 데이터</div>
+          </div>
+        </div>
+
+        <!-- 환경 박스 -->
+        <div style="flex:1;background:rgba(62,207,142,.08);border:2px solid var(--green);border-radius:16px;padding:24px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">📈</div>
+          <div style="font-weight:700;font-size:15px;color:var(--green);margin-bottom:6px;">환경 (시장)</div>
+          <div style="font-size:12px;color:var(--muted);">코스피 ETF 14종목<br>2013 ~ 2026</div>
+          <div style="margin-top:12px;background:var(--surface);border-radius:8px;padding:10px;font-size:12px;color:var(--muted);">
+            "매일 가격이 움직이는<br>실제 시장"
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단: 학습 루프 -->
+      <div style="width:100%;max-width:800px;margin-top:16px;background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.3);border-radius:12px;padding:16px 24px;display:flex;align-items:center;gap:16px;">
+        <div style="font-size:24px;">🔄</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--yellow);margin-bottom:4px;">학습 과정</div>
+          <div style="font-size:12px;color:var(--muted);">수익이 나면 → 그 결정을 더 자주 하도록 강화 &nbsp;|&nbsp; 손실이 나면 → 그 결정을 피하도록 수정.<br>이를 <strong style="color:var(--text)">1,454,400번</strong> 반복하면서 최적 전략을 찾아갑니다.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4개 핵심 개념 카드 -->
+  <div class="card-grid">
+
+    <div class="card">
+      <div style="font-size:24px;margin-bottom:8px;">👁️</div>
+      <h3 style="margin-top:0;">State — 에이전트가 보는 정보</h3>
+      <p style="font-size:13px;">인간 펀드매니저가 투자를 결정하기 전에 보는 리포트와 같습니다.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+        <div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12px;">
+          <span style="color:var(--accent);font-weight:600;">① 현재 포지션</span><br>
+          <span style="color:var(--muted);">지금 어디에 얼마나 투자하고 있나</span>
+        </div>
+        <div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12px;">
+          <span style="color:var(--accent);font-weight:600;">② 최근 60일 수익률 이력</span><br>
+          <span style="color:var(--muted);">각 ETF가 지난 3개월간 어떻게 움직였나</span>
+        </div>
+        <div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12px;">
+          <span style="color:var(--accent);font-weight:600;">③ 시장 변동성</span><br>
+          <span style="color:var(--muted);">시장이 얼마나 출렁이고 있나 (VKOSPI 등)</span>
+        </div>
+        <div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12px;">
+          <span style="color:var(--accent);font-weight:600;">④ 시장 국면 확률</span><br>
+          <span style="color:var(--muted);">지금이 강세장인지 약세장인지 (HMM)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:24px;margin-bottom:8px;">⚖️</div>
+      <h3 style="margin-top:0;">Action — 에이전트의 결정</h3>
+      <p style="font-size:13px;">위 정보를 바탕으로 <strong style="color:var(--text)">14개 ETF에 대한 비중을 매일 결정</strong>합니다.</p>
+      <div style="margin-top:16px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">예시 포트폴리오 배분</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+            <span style="width:80px;color:var(--muted);">반도체</span>
+            <div style="flex:1;background:var(--surface);border-radius:4px;height:14px;overflow:hidden;">
+              <div style="width:28%;height:100%;background:var(--accent);border-radius:4px;"></div>
+            </div>
+            <span style="color:var(--accent);width:36px;text-align:right;">28%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+            <span style="width:80px;color:var(--muted);">금</span>
+            <div style="flex:1;background:var(--surface);border-radius:4px;height:14px;overflow:hidden;">
+              <div style="width:18%;height:100%;background:var(--yellow);border-radius:4px;"></div>
+            </div>
+            <span style="color:var(--yellow);width:36px;text-align:right;">18%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+            <span style="width:80px;color:var(--muted);">국채 10년</span>
+            <div style="flex:1;background:var(--surface);border-radius:4px;height:14px;overflow:hidden;">
+              <div style="width:15%;height:100%;background:var(--green);border-radius:4px;"></div>
+            </div>
+            <span style="color:var(--green);width:36px;text-align:right;">15%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+            <span style="width:80px;color:var(--muted);">나머지</span>
+            <div style="flex:1;background:var(--surface);border-radius:4px;height:14px;overflow:hidden;">
+              <div style="width:39%;height:100%;background:var(--muted);border-radius:4px;opacity:.5;"></div>
+            </div>
+            <span style="color:var(--muted);width:36px;text-align:right;">39%</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);">합계는 항상 100% (공매도 없음)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:24px;margin-bottom:8px;">🏆</div>
+      <h3 style="margin-top:0;">Reward — 성과 측정</h3>
+      <p style="font-size:13px;">단순 수익률이 아니라 <strong style="color:var(--text)">위험 대비 수익(Sharpe Ratio)</strong>을 매일 측정합니다.</p>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+        <div style="background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:8px;padding:12px;font-size:12px;">
+          <span style="color:var(--green);font-weight:600;">좋은 결정 → 높은 보상</span><br>
+          <span style="color:var(--muted);">수익이 나면서 변동성이 낮을수록</span>
+        </div>
+        <div style="background:rgba(224,95,95,.08);border:1px solid rgba(224,95,95,.2);border-radius:8px;padding:12px;font-size:12px;">
+          <span style="color:var(--red);font-weight:600;">나쁜 결정 → 낮은 보상</span><br>
+          <span style="color:var(--muted);">손실이 나거나 변동성이 클수록</span>
+        </div>
+        <div style="background:var(--surface);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);">
+          이 보상을 <strong style="color:var(--text)">DSR (Differential Sharpe Ratio)</strong>이라 부릅니다. "오늘의 투자 결정이 Sharpe Ratio를 얼마나 개선했는가"를 수치화한 것입니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:24px;margin-bottom:8px;">🌦️</div>
+      <h3 style="margin-top:0;">HMM — 시장 국면 감지</h3>
+      <p style="font-size:13px;">KOSPI 수익률과 변동성 지수(VKOSPI)를 분석해 <strong style="color:var(--text)">현재 시장이 어떤 국면인지</strong> 확률로 제공합니다.</p>
+      <div style="display:flex;gap:12px;margin-top:16px;justify-content:center;">
+        <div style="text-align:center;flex:1;">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(62,207,142,.2);border:2px solid var(--green);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:20px;">📈</div>
+          <div style="font-size:12px;font-weight:600;color:var(--green);">강세장</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Bull Market</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(245,166,35,.2);border:2px solid var(--yellow);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:20px;">➡️</div>
+          <div style="font-size:12px;font-weight:600;color:var(--yellow);">횡보장</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Neutral</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(224,95,95,.2);border:2px solid var(--red);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:20px;">📉</div>
+          <div style="font-size:12px;font-weight:600;color:var(--red);">약세장</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Bear Market</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;background:var(--surface);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);">
+        에이전트는 이 국면 확률을 참고해 강세장엔 공격적으로, 약세장엔 방어적으로 배분을 조정합니다.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 기존 금융 이론과 비교 -->
+  <div class="card" style="margin-top:16px;">
+    <h3>기존 방법론과의 비교</h3>
+    <table>
+      <tr><th>구분</th><th>전통적 포트폴리오 이론</th><th>이 시스템 (RL)</th></tr>
+      <tr>
+        <td>전략 결정</td>
+        <td style="color:var(--muted);">수식(MPT, Black-Litterman)으로 고정</td>
+        <td style="color:var(--green);">데이터에서 스스로 학습</td>
+      </tr>
+      <tr>
+        <td>시장 국면 반영</td>
+        <td style="color:var(--muted);">주기적 리밸런싱으로 대응</td>
+        <td style="color:var(--green);">HMM으로 매일 국면 감지</td>
+      </tr>
+      <tr>
+        <td>목표 지표</td>
+        <td style="color:var(--muted);">기대수익 최대화 / 분산 최소화</td>
+        <td style="color:var(--green);">Sharpe Ratio 최대화 (DSR)</td>
+      </tr>
+      <tr>
+        <td>거래비용</td>
+        <td style="color:var(--muted);">별도 모델로 처리</td>
+        <td style="color:var(--green);">보상 함수에 직접 반영</td>
+      </tr>
+      <tr>
+        <td>비선형 패턴</td>
+        <td style="color:var(--muted);">포착 어려움</td>
+        <td style="color:var(--green);">신경망으로 자동 학습</td>
+      </tr>
+    </table>
   </div>
 </section>
 
@@ -459,78 +674,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
   </div>
 </section>
 
-<!-- ═══════════════════════════ PROGRESS ═══════════════════════════ -->
-<section id="progress">
-  <h2>현재 실험 진행 상황</h2>
-  <div class="progress-header">
-    <span><span class="badge badge-yellow">● Full Run 진행 중</span> &nbsp; 맥북 CPU · mode=full · 5 seeds · 1,454,400 steps/seed</span>
-    <span style="color:var(--muted);font-size:13px;">예상 완료: ~13일</span>
-  </div>
-
-  <div class="round-cards">
-    <!-- Round 1: 완료 -->
-    <div class="round-card done">
-      <div class="rn">Round 1 · best seed: 1 <span class="badge badge-green">완료</span></div>
-      <div class="metric">+5.1%</div>
-      <div class="metric-label">Test 누적수익률</div>
-      <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
-        <div><span style="color:var(--muted)">Sharpe</span><br><span class="val-pos">0.564</span></div>
-        <div><span style="color:var(--muted)">MDD</span><br><span class="val-neg">-11.4%</span></div>
-        <div><span style="color:var(--muted)">Turnover</span><br><span class="val-neu">0.0052</span></div>
-        <div><span style="color:var(--muted)">Test 기간</span><br><span style="color:var(--text)">2019</span></div>
-      </div>
-    </div>
-    <!-- Round 2: 진행 중 -->
-    <div class="round-card running">
-      <div class="rn">Round 2 <span class="badge badge-yellow">진행 중</span></div>
-      <div class="metric" style="color:var(--yellow);">━━━</div>
-      <div class="metric-label">Test 기간: 2020</div>
-      <div style="margin-top:12px;font-size:12px;color:var(--muted);">
-        Train: 2014~2018<br>Val: 2019
-      </div>
-    </div>
-    <!-- Round 3~8: 대기 -->
-    <div class="round-card pending">
-      <div class="rn">Round 3</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2021<br>대기 중</div>
-    </div>
-    <div class="round-card pending">
-      <div class="rn">Round 4</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2022<br>대기 중</div>
-    </div>
-    <div class="round-card pending">
-      <div class="rn">Round 5</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2023<br>대기 중</div>
-    </div>
-    <div class="round-card pending">
-      <div class="rn">Round 6</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2024<br>대기 중</div>
-    </div>
-    <div class="round-card pending">
-      <div class="rn">Round 7</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2025<br>대기 중</div>
-    </div>
-    <div class="round-card pending">
-      <div class="rn">Round 8</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Test: 2026 (partial)<br>대기 중</div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:24px;">
-    <h3>Round 1 결과 상세</h3>
-    <table>
-      <tr><th>항목</th><th>값</th><th>설명</th></tr>
-      <tr><td>Best Seed</td><td class="val-neu">1</td><td>Val DSR 기준 선택</td></tr>
-      <tr><td>Val DSR (best)</td><td class="val-neg">-39.38</td><td>탐색 보상 누적합</td></tr>
-      <tr><td>Test DSR 합</td><td class="val-neg">-6.33</td><td>Test 기간 보상 누적</td></tr>
-      <tr><td>Test Sharpe</td><td class="val-pos">0.564</td><td>연환산 (×√252)</td></tr>
-      <tr><td>Test 누적수익률</td><td class="val-pos">+5.14%</td><td>2019년 전체</td></tr>
-      <tr><td>Test MDD</td><td class="val-neg">-11.42%</td><td>최대 낙폭</td></tr>
-      <tr><td>Test Turnover</td><td class="val-neu">0.0052</td><td>평균 일일 회전율</td></tr>
-      <tr><td>Test 스텝 수</td><td class="val-neu">245 일</td><td>2019 거래일</td></tr>
-    </table>
-  </div>
-</section>
 
 </div><!-- .page -->
 
