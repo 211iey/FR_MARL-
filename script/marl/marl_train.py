@@ -15,17 +15,20 @@ DiversityPortfolioEnv를 통해 매 스텝 다른 에이전트의 비중을 참�
   단일 기간 고정 (config.marl 기준)
   λ ∈ [0.0, 0.1, ..., 0.9] × diversity_mode ∈ [correlation, tv]
 
-사용 예:
-    python3 marl_train.py --mode smoke
-    python3 marl_train.py --mode full
-    python3 marl_train.py --lambda-val 0.3 --diversity-mode tv
+사용 예 (script/ 디렉토리에서 실행):
+    python3 marl/marl_train.py --mode smoke
+    python3 marl/marl_train.py --mode full
+    python3 marl/marl_train.py --lambda-val 0.3 --diversity-mode tv
 """
 
 from __future__ import annotations
 
 import argparse
 import pickle
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 import pandas as pd

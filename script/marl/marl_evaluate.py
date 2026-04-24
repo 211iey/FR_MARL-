@@ -1,9 +1,9 @@
 """
 MARL λ sweep 결과 평가 및 시각화.
 
-사용 예:
-    python3 marl_evaluate.py
-    python3 marl_evaluate.py --config <path>
+사용 예 (script/ 디렉토리에서 실행):
+    python3 marl/marl_evaluate.py
+    python3 marl/marl_evaluate.py --config <path>
 
 전제: marl_train.py 실행 후 results/marl/sweep_results.csv 존재
 """
@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import argparse
 import pickle
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
