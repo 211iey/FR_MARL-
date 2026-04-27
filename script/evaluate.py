@@ -236,6 +236,14 @@ def main():
             "test_mdd", "test_turnover"]
     print(results_df[cols].to_string(index=False))
 
+    print("\n" + "=" * 70)
+    print(" 전체 기간 평균 투자 비중")
+    print("=" * 70)
+    avg_weights = weights_arr.mean(axis=0)
+    for col, w in zip(asset_cols, avg_weights):
+        bar = "█" * int(w * 40)
+        print(f"  {col:<14} {w*100:5.1f}%  {bar}")
+
     # ── 저장 ───────────────────────────────────────────
     summary_path = Path(cfg["paths"]["results_dir"]) / "summary.csv"
     summary.to_csv(summary_path, index=False)
