@@ -27,7 +27,5 @@ env/
 # Optuna DB (재생성 가능)
 results/hpo/*.db
 
-# 보안 이슈 ^^
-**/*.csv
-**/*.png
+**/*.pkl
 

@@ -5,7 +5,8 @@
       "Bash(python3 config.py)",
       "Bash(open *)",
       "Bash(gh auth *)",
-      "Bash(git --version)"
+      "Bash(git --version)",
+      "Bash(git fetch *)"
     ]
   }
 }

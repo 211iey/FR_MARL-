@@ -1,0 +1,2 @@
+round,best_seed,best_val_dsr,test_dsr_sum,test_sharpe,test_cum_return,test_mdd,test_turnover,test_n_steps,train_start,train_end,val_start,val_end,test_start,test_end
+1,1,-39.08209408857853,-6.514946672487961,0.5685830852429473,0.05136024238415615,-0.11279679744487081,0.005983875133097172,245,2013-08-06,2017-12-31,2018-01-01,2018-12-31,2019-01-01,2019-12-31
