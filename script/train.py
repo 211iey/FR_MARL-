@@ -230,6 +230,12 @@ def train_round(
           f"MDD={test_metrics['mdd']*100:.2f}%, "
           f"Turnover={test_metrics['turnover']:.4f}")
 
+    avg_weights = np.mean(test_env.weight_history[1:], axis=0)
+    print("  평균 투자 비중:")
+    for col, w in zip(cfg["data"]["asset_cols"], avg_weights):
+        bar = "█" * int(w * 40)
+        print(f"    {col:<14} {w*100:5.1f}%  {bar}")
+
     # 일별 시계열 저장 (evaluate.py용)
     daily_dir = Path(cfg["paths"]["results_dir"]) / "daily"
     daily_dir.mkdir(parents=True, exist_ok=True)

@@ -29,7 +29,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     if not path.is_absolute():
         path = (Path.cwd() / path).resolve()
 
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
     base = path.parent
