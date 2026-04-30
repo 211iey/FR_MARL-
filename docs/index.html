@@ -190,7 +190,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="meta-pill">데이터 <span>2013-08 ~ 2026-04</span></div>
     <div class="meta-pill">자산 <span>14개 코스피 ETF</span></div>
     <div class="meta-pill">알고리즘 <span>PPO (SB3)</span></div>
-    <div class="meta-pill">라운드 <span>8 Rolling Windows</span></div>
+    <div class="meta-pill">라운드 <span>3 Rolling Windows</span></div>
     <div class="meta-pill">상태 <span class="badge badge-yellow">학습 진행 중</span></div>
   </div>
 </div>
@@ -531,21 +531,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="rw-legend">
       <div class="rw-legend-item"><div class="rw-dot" style="background:rgba(91,141,238,.5)"></div> Train (5년)</div>
       <div class="rw-legend-item"><div class="rw-dot" style="background:rgba(245,166,35,.6)"></div> Val (1년)</div>
-      <div class="rw-legend-item"><div class="rw-dot" style="background:rgba(62,207,142,.5)"></div> Test (1년)</div>
+      <div class="rw-legend-item"><div class="rw-dot" style="background:rgba(62,207,142,.5)"></div> Test (5년)</div>
     </div>
     <!-- 전체 기간: 2013~2026 = 13년. 각 픽셀당 1년 -->
     <div style="display:flex;flex-direction:column;gap:8px;" id="rwTimeline"></div>
 
     <script>
     const rounds = [
-      {n:1, train:"2013~2017", val:"2018", test:"2019", ts:2013, te:2017, vs:2018, ve:2018, ts2:2019, te2:2019},
-      {n:2, train:"2014~2018", val:"2019", test:"2020", ts:2014, te:2018, vs:2019, ve:2019, ts2:2020, te2:2020},
-      {n:3, train:"2015~2019", val:"2020", test:"2021", ts:2015, te:2019, vs:2020, ve:2020, ts2:2021, te2:2021},
-      {n:4, train:"2016~2020", val:"2021", test:"2022", ts:2016, te:2020, vs:2021, ve:2021, ts2:2022, te2:2022},
-      {n:5, train:"2017~2021", val:"2022", test:"2023", ts:2017, te:2021, vs:2022, ve:2022, ts2:2023, te2:2023},
-      {n:6, train:"2018~2022", val:"2023", test:"2024", ts:2018, te:2022, vs:2023, ve:2023, ts2:2024, te2:2024},
-      {n:7, train:"2019~2023", val:"2024", test:"2025", ts:2019, te:2023, vs:2024, ve:2024, ts2:2025, te2:2025},
-      {n:8, train:"2020~2024", val:"2025", test:"2026", ts:2020, te:2024, vs:2025, ve:2025, ts2:2026, te2:2026},
+      {n:1, train:"2013~2017", val:"2018", test:"2019~2023", ts:2013, te:2017, vs:2018, ve:2018, ts2:2019, te2:2023},
+      {n:2, train:"2014~2018", val:"2019", test:"2020~2024", ts:2014, te:2018, vs:2019, ve:2019, ts2:2020, te2:2024},
+      {n:3, train:"2015~2019", val:"2020", test:"2021~2026", ts:2015, te:2019, vs:2020, ve:2020, ts2:2021, te2:2026},
     ];
     const MIN=2013, MAX=2027, SPAN=MAX-MIN;
     const tl = document.getElementById('rwTimeline');
@@ -810,13 +805,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
   <!-- Part A: Single-Agent Rolling Window -->
   <h3 style="color:var(--accent);margin-top:0;">A. Single-Agent Rolling Window</h3>
-  <p>8 Round 중 <strong style="color:var(--text);">3 Round 완료</strong>. Round별 Best Seed의 Test 성과.</p>
+  <p>총 3 Round. Round별 Best Seed의 Test 성과.</p>
 
   <div class="res-card done">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
       <div>
         <strong style="color:var(--text);font-size:15px;">Round 1</strong>
-        <span style="color:var(--muted);font-size:12px;margin-left:8px;">Train 2013-08 ~ 2017 / Val 2018 / Test <strong style="color:var(--text);">2019</strong></span>
+        <span style="color:var(--muted);font-size:12px;margin-left:8px;">Train 2013-08 ~ 2017 / Val 2018 / Test <strong style="color:var(--text);">2019~2023</strong></span>
       </div>
       <span class="badge badge-green">완료</span>
     </div>
@@ -826,14 +821,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="metric-box"><div class="ml">MDD</div><div class="mv" style="color:var(--red);">−15.3%</div></div>
       <div class="metric-box"><div class="ml">Turnover</div><div class="mv">0.96</div></div>
     </div>
-    <p class="res-note">박스권 + 낮은 변동성 구간. 중간 수준 성과. Best Seed = 1.</p>
+    <p class="res-note">2019 박스권 + 2020 COVID 충격·반등 + 2021~2023 포함 5년 복합 구간. Best Seed = 1.</p>
   </div>
 
   <div class="res-card done">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
       <div>
         <strong style="color:var(--text);font-size:15px;">Round 2</strong>
-        <span style="color:var(--muted);font-size:12px;margin-left:8px;">Train 2014 ~ 2018 / Val 2019 / Test <strong style="color:var(--text);">2020 (COVID)</strong></span>
+        <span style="color:var(--muted);font-size:12px;margin-left:8px;">Train 2014 ~ 2018 / Val 2019 / Test <strong style="color:var(--text);">2020~2024</strong></span>
       </div>
       <span class="badge badge-green">완료</span>
     </div>
@@ -843,14 +838,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="metric-box"><div class="ml">MDD</div><div class="mv" style="color:var(--red);">−12.1%</div></div>
       <div class="metric-box"><div class="ml">Turnover</div><div class="mv">0.75</div></div>
     </div>
-    <p class="res-note">COVID 충격 기간에 <strong style="color:var(--text);">최고 Sharpe 2.01</strong>. HMM 레짐 전환 feature의 기여가 두드러진 것으로 해석됨. Best Seed = 2.</p>
+    <p class="res-note">2020 COVID 충격~반등 + 2021~2022 금리인상 + 2023~2024 포함 5년 복합 구간. HMM 레짐 전환 feature의 기여가 두드러진 것으로 해석됨. Best Seed = 2.</p>
   </div>
 
   <div class="res-card done">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
       <div>
         <strong style="color:var(--text);font-size:15px;">Round 3</strong>
-        <span style="color:var(--muted);font-size:12px;margin-left:8px;">Train 2015 ~ 2019 / Val 2020 / Test <strong style="color:var(--text);">2021</strong></span>
+        <span style="color:var(--muted);font-size:12px;margin-left:8px;">Train 2015 ~ 2019 / Val 2020 / Test <strong style="color:var(--text);">2021~2026</strong></span>
       </div>
       <span class="badge badge-green">완료</span>
     </div>
@@ -860,7 +855,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="metric-box"><div class="ml">MDD</div><div class="mv" style="color:var(--red);">−10.6%</div></div>
       <div class="metric-box"><div class="ml">Turnover</div><div class="mv">0.88</div></div>
     </div>
-    <p class="res-note">상승장 후반. Val DSR은 26.7로 매우 높았으나 실전 Test 성과가 따라오지 못함 → <strong style="color:var(--text);">Val/Test gap (overfitting 가능성)</strong>. Best Seed = 0.</p>
+    <p class="res-note">2021 상승장 후반 + 2022 급락 + 2023~2026 포함 5년 복합 구간. Val DSR은 높았으나 실전 Test 성과가 따라오지 못함 → <strong style="color:var(--text);">Val/Test gap (overfitting 가능성)</strong>. Best Seed = 0.</p>
   </div>
 
   <!-- 평균 요약 -->
@@ -872,7 +867,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="metric-box"><div class="ml">평균 MDD</div><div class="mv" style="color:var(--red);font-size:26px;">−12.7%</div></div>
       <div class="metric-box"><div class="ml">평균 Turnover</div><div class="mv" style="color:var(--text);font-size:26px;">0.86</div></div>
     </div>
-    <p style="margin-top:14px;font-size:13px;color:var(--muted);">Round 4 ~ 8 (Test 2022 ~ 2026) 은 학습 대기. 8 Round 완료 후 전체 기간 벤치마크(KODEX 200) 대비 비교 리포트 예정.</p>
+    <p style="margin-top:14px;font-size:13px;color:var(--muted);">3 Round 완료 후 전체 기간(2019~2026) 벤치마크(KODEX 200) 대비 비교 리포트 예정.</p>
   </div>
 
   <!-- Part B: MARL -->
