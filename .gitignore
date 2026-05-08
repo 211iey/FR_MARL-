@@ -1,5 +1,6 @@
 # 학습된 모델 (용량 계속 증가)
 models/
+.claude/
 
 # Python
 __pycache__/
