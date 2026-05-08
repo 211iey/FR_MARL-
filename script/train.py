@@ -73,7 +73,43 @@ def make_env(data_df, cfg, hmm_model, hmm_scaler) -> PortfolioEnv:
         window=cfg["data"]["window"],
         eta=cfg["env"]["eta"],
         cost=cfg["env"]["cost"],
+        max_weight=cfg["env"].get("max_weight"),
     )
+
+
+def make_run_tag(cfg: dict) -> str | None:
+    """
+    실험 변형 태그 생성. 기본 설정(HMM-on, cap 없음)은 None을 반환하여
+    기존 출력 경로(results/rolling_window_results.csv 등)를 그대로 사용.
+    """
+    use_hmm = cfg["train"].get("use_hmm", True)
+    mw = cfg["env"].get("max_weight")
+    cap_active = (mw is not None) and (float(mw) < 1.0)
+    if use_hmm and not cap_active:
+        return None
+    parts = ["hmm" if use_hmm else "nohmm"]
+    parts.append(f"cap{int(round(float(mw) * 100))}" if cap_active else "nocap")
+    return "_".join(parts)
+
+
+def get_run_paths(cfg: dict) -> dict:
+    """태그에 따라 모델/결과/일별 디렉토리 경로 결정."""
+    tag = make_run_tag(cfg)
+    base_models = Path(cfg["paths"]["models_dir"])
+    base_results = Path(cfg["paths"]["results_dir"])
+    if tag is None:
+        return {
+            "tag": None,
+            "models_root": base_models,
+            "results_csv": base_results / "rolling_window_results.csv",
+            "daily_dir":   base_results / "daily",
+        }
+    return {
+        "tag": tag,
+        "models_root": base_models / tag,
+        "results_csv": base_results / f"rolling_window_results_{tag}.csv",
+        "daily_dir":   base_results / "daily" / tag,
+    }
 
 
 def wrap_train_env(env, cfg: dict) -> VecEnv:
@@ -168,11 +204,16 @@ def train_round(
     print(f"  데이터: train={len(train_df)}일, val={len(val_df)}일, "
           f"test={len(test_df)}일")
 
-    # HMM은 train data로만 학습 (look-ahead 방지)
-    print("  HMM 학습 중...")
-    hmm_model, hmm_scaler = train_market_hmm(train_df, n_regimes=n_regimes)
+    # HMM 학습 (use_hmm=False면 skip → ablation)
+    if cfg["train"].get("use_hmm", True):
+        print("  HMM 학습 중...")
+        hmm_model, hmm_scaler = train_market_hmm(train_df, n_regimes=n_regimes)
+    else:
+        print("  HMM 사용 안 함 (ablation: --no-hmm)")
+        hmm_model, hmm_scaler = None, None
 
-    round_dir = Path(cfg["paths"]["models_dir"]) / f"round_{spec.round_index + 1:02d}"
+    paths = get_run_paths(cfg)
+    round_dir = paths["models_root"] / f"round_{spec.round_index + 1:02d}"
     round_dir.mkdir(parents=True, exist_ok=True)
 
     seed_results = []
@@ -237,7 +278,7 @@ def train_round(
         print(f"    {col:<14} {w*100:5.1f}%  {bar}")
 
     # 일별 시계열 저장 (evaluate.py용)
-    daily_dir = Path(cfg["paths"]["results_dir"]) / "daily"
+    daily_dir = paths["daily_dir"]
     daily_dir.mkdir(parents=True, exist_ok=True)
     daily = {
         "round_index": spec.round_index,
@@ -290,11 +331,19 @@ def main():
                         help="Round 간 weight 인계 끄기")
     parser.add_argument("--feature-extractor", choices=["mlp", "transformer"],
                         default=None, help="config 값 덮어쓰기")
+    parser.add_argument("--no-hmm", action="store_true",
+                        help="HMM 비활성 (ablation). 결과는 별도 디렉토리에 저장")
+    parser.add_argument("--max-weight", type=float, default=None,
+                        help="단일 자산 최대 비중 cap (예: 0.5). 기본=cap 없음")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     if args.feature_extractor:
         cfg["train"]["feature_extractor"] = args.feature_extractor
+    if args.no_hmm:
+        cfg["train"]["use_hmm"] = False
+    if args.max_weight is not None:
+        cfg["env"]["max_weight"] = args.max_weight
 
     args.total_timesteps = (
         cfg["train"]["total_timesteps_smoke"]
@@ -314,6 +363,11 @@ def main():
     if args.rounds:
         rounds = rounds[: args.rounds]
 
+    paths = get_run_paths(cfg)
+    use_hmm = cfg["train"].get("use_hmm", True)
+    mw = cfg["env"].get("max_weight")
+    cap_str = f"{mw}" if (mw is not None and float(mw) < 1.0) else "없음"
+
     print("=" * 70)
     print(f" Rolling Window PPO 학습  (mode={args.mode})")
     print("=" * 70)
@@ -322,6 +376,10 @@ def main():
     print(f"  시드:   {args.n_seeds}")
     print(f"  steps:  {args.total_timesteps:,}")
     print(f"  weight 인계: {args.transfer_weights}")
+    print(f"  HMM 사용:    {use_hmm}")
+    print(f"  max_weight:  {cap_str}")
+    print(f"  변형 태그:   {paths['tag'] or '(기본 baseline)'}")
+    print(f"  결과 저장:   {paths['results_csv']}")
 
     results = []
     prev_best_params = None
@@ -349,9 +407,7 @@ def main():
         rows.append(row)
     results_df = pd.DataFrame(rows)
 
-    results_path = (
-        Path(cfg["paths"]["results_dir"]) / "rolling_window_results.csv"
-    )
+    results_path = paths["results_csv"]
     results_path.parent.mkdir(parents=True, exist_ok=True)
     results_df.to_csv(results_path, index=False)
 

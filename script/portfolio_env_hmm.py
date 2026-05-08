@@ -18,10 +18,47 @@ Differential Sharpe Ratio (DSR) — 논문 수식 3.4~3.7
 """
 
 import numpy as np
-import pandas as pd 
+import pandas as pd
 import gymnasium as gym
 from gymnasium import spaces
 from HMM import train_market_hmm
+
+
+def _cap_weights(w: np.ndarray, max_w: float, max_iters: int = 20) -> np.ndarray:
+    """
+    단일 자산 비중을 max_w 이하로 cap 후 sum=1을 유지하도록 재정규화.
+    초과분은 cap 미만 자산들에게 비중 비례로 분배 (반복).
+
+    feasibility: max_w * n_assets >= 1 이어야 함. 아닐 경우 등가중으로 fallback.
+    """
+    n = len(w)
+    if max_w >= 1.0:
+        return w.astype(np.float32)
+    if max_w * n < 1.0 - 1e-9:
+        return np.ones(n, dtype=np.float32) / n
+
+    w = w.astype(np.float64).copy()
+    for _ in range(max_iters):
+        over = w > max_w + 1e-9
+        if not over.any():
+            break
+        excess = float((w[over] - max_w).sum())
+        w[over] = max_w
+        under = ~over
+        if not under.any():
+            break
+        under_sum = float(w[under].sum())
+        if under_sum > 1e-9:
+            w[under] += excess * w[under] / under_sum
+        else:
+            # 모든 미초과 자산이 0인 경우: 균등 분배
+            w[under] += excess / under.sum()
+
+    w = np.maximum(w, 0.0)
+    s = w.sum()
+    if s > 0:
+        w = w / s
+    return w.astype(np.float32)
 
 
 # ─────────────────────────────────────────────
@@ -86,11 +123,12 @@ class PortfolioEnv(gym.Env):
         data:       pd.DataFrame,
         asset_cols: list,
         vol_cols:   list,
-        hmm_model:  object = None,  # 추가: 학습된 HMM 모델
-        hmm_scaler: object = None,  # 추가: HMM용 StandardScaler
+        hmm_model:  object = None,  # 학습된 HMM 모델 (None이면 HMM-off ablation)
+        hmm_scaler: object = None,  # HMM용 StandardScaler
         window:     int   = 60,
         eta:        float = 1 / 252,
         cost:       float = 0.00015,
+        max_weight: float = None,   # 단일 자산 최대 비중 cap (None이면 cap 없음)
     ):
         super().__init__()
 
@@ -103,6 +141,7 @@ class PortfolioEnv(gym.Env):
         self.eta        = eta
         self.cost       = cost
         self.T          = len(data)
+        self.max_weight = max_weight  # None or float ∈ (1/n_assets, 1]
 
         # ── HMM 관련 설정 (추가)
         self.hmm_model  = hmm_model
@@ -210,6 +249,10 @@ class PortfolioEnv(gym.Env):
         a  = np.clip(action, lo, hi).astype(np.float64)
         exp_a  = np.exp(a - a.max())          # 수치 안정성
         new_w  = (exp_a / exp_a.sum()).astype(np.float32)
+
+        # ── 단일 자산 비중 cap (옵션)
+        if self.max_weight is not None and self.max_weight < 1.0:
+            new_w = _cap_weights(new_w, float(self.max_weight))
 
         # ── 거래비용 계산 (논문은 0으로 가정)
         turnover = float(np.abs(new_w - self.weights).sum())

@@ -2,13 +2,17 @@
 Rolling Window 평가 및 시각화.
 
 사용 예:
-    python3 evaluate.py
-    python3 evaluate.py --config <path>
+    python3 evaluate.py                            # 기본 baseline 평가
+    python3 evaluate.py --no-hmm                   # HMM ablation 결과 평가
+    python3 evaluate.py --max-weight 0.3           # max_weight cap 결과 평가
+    python3 evaluate.py --max-weight 0.3 --no-hmm  # 둘 다 적용된 결과
 
 전제:
-  train.py 실행 후 생성된 파일들:
-    - results/rolling_window_results.csv
-    - results/daily/round_XX.pkl
+  train.py 실행 후 생성된 파일들 (변형에 따라 경로 다름):
+    - 기본:       results/rolling_window_results.csv,
+                  results/daily/round_XX.pkl
+    - 변형 <tag>: results/rolling_window_results_<tag>.csv,
+                  results/daily/<tag>/round_XX.pkl
 """
 
 from __future__ import annotations
@@ -23,14 +27,14 @@ import pandas as pd
 import seaborn as sns
 
 from config import load_config
+from train import get_run_paths
 
 
 # ─────────────────────────────────────────────────────────────
 # 로드
 # ─────────────────────────────────────────────────────────────
 
-def load_daily_results(cfg: dict, n_rounds: int) -> list[dict]:
-    daily_dir = Path(cfg["paths"]["results_dir"]) / "daily"
+def load_daily_results(daily_dir: Path, n_rounds: int) -> list[dict]:
     out = []
     for i in range(n_rounds):
         p = daily_dir / f"round_{i + 1:02d}.pkl"
@@ -167,22 +171,35 @@ def plot_weights_heatmap(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=None)
+    parser.add_argument("--no-hmm", action="store_true",
+                        help="HMM-off 변형 결과 평가")
+    parser.add_argument("--max-weight", type=float, default=None,
+                        help="max_weight cap 변형 결과 평가 (예: 0.3)")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    if args.no_hmm:
+        cfg["train"]["use_hmm"] = False
+    if args.max_weight is not None:
+        cfg["env"]["max_weight"] = args.max_weight
 
-    results_path = (
-        Path(cfg["paths"]["results_dir"]) / "rolling_window_results.csv"
-    )
+    paths = get_run_paths(cfg)
+    tag = paths["tag"]
+
+    print(f"[info] 평가 대상: {tag or '(기본 baseline)'}")
+    print(f"[info] CSV:    {paths['results_csv']}")
+    print(f"[info] daily:  {paths['daily_dir']}")
+
+    results_path = paths["results_csv"]
     if not results_path.exists():
         raise FileNotFoundError(
-            f"{results_path} 없음. 먼저 train.py를 실행하세요."
+            f"{results_path} 없음. 먼저 train.py를 동일 옵션으로 실행하세요."
         )
     results_df = pd.read_csv(results_path)
 
-    daily_list = load_daily_results(cfg, len(results_df))
+    daily_list = load_daily_results(paths["daily_dir"], len(results_df))
     if not daily_list:
-        raise RuntimeError("daily/*.pkl 없음.")
+        raise RuntimeError(f"{paths['daily_dir']}/*.pkl 없음.")
 
     df = pd.read_csv(
         cfg["paths"]["data_csv"], index_col=0, parse_dates=True
@@ -244,11 +261,13 @@ def main():
         bar = "█" * int(w * 40)
         print(f"  {col:<14} {w*100:5.1f}%  {bar}")
 
-    # ── 저장 ───────────────────────────────────────────
-    summary_path = Path(cfg["paths"]["results_dir"]) / "summary.csv"
+    # ── 저장 (변형이면 별도 디렉토리·파일로 분리) ───────
+    suffix = f"_{tag}" if tag else ""
+    summary_path = Path(cfg["paths"]["results_dir"]) / f"summary{suffix}.csv"
     summary.to_csv(summary_path, index=False)
 
-    figures_dir = Path(cfg["paths"]["figures_dir"])
+    base_fig_dir = Path(cfg["paths"]["figures_dir"])
+    figures_dir = base_fig_dir / tag if tag else base_fig_dir
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     plot_cumulative(
@@ -257,13 +276,13 @@ def main():
     )
     plot_round_bar(
         results_df, "test_sharpe",
-        "Test Sharpe Ratio by Round",
+        f"Test Sharpe Ratio by Round  [{tag or 'baseline'}]",
         figures_dir / "round_sharpe.png",
         ylabel="Sharpe Ratio",
     )
     plot_round_bar(
         results_df, "test_mdd",
-        "Test Max Drawdown by Round",
+        f"Test Max Drawdown by Round  [{tag or 'baseline'}]",
         figures_dir / "round_mdd.png",
         ylabel="MDD",
     )
@@ -272,8 +291,8 @@ def main():
         figures_dir / "weights_heatmap.png",
     )
 
-    print(f"\n→ summary.csv: {summary_path}")
-    print(f"→ figures:     {figures_dir}/")
+    print(f"\n→ summary{suffix}.csv: {summary_path}")
+    print(f"→ figures:           {figures_dir}/")
 
 
 if __name__ == "__main__":

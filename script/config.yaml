@@ -62,6 +62,7 @@ env:
   cost: 0.00015
   dsr_clip: 10.0
   action_logit_range: 10.0
+  max_weight: null              # 단일 자산 cap. null=cap 없음, 0.5=50% 등 (CLI --max-weight로 덮어쓰기 가능)
   # VecNormalize: train 시 보상만 동적 정규화 (obs는 PortfolioEnv에서 이미 설계됨)
   vecnormalize:
     enabled: true
@@ -73,14 +74,16 @@ env:
 #   * HPO 수행 시, best 결과를 수동으로 이 섹션에 반영
 # ----------------------------------------------------------
 ppo:
+  # HPO Trial 3 best (val DSR sum = +8.154, n_trials_done=14)
+  # 출처: results/hpo/best_config.yaml
   policy: "MlpPolicy"
-  learning_rate: 3.0e-4
-  gamma: 0.9
-  gae_lambda: 0.9
-  clip_range: 0.25
-  ent_coef: 0.035
+  learning_rate: 0.0005987474910461401
+  gamma: 0.8754080944294064
+  gae_lambda: 0.8123598026672032
+  clip_range: 0.28226345557043153
+  ent_coef: 0.009290082543999545
   n_steps: 2048
-  batch_size: 64
+  batch_size: 256
   n_epochs: 2
   net_arch: [64, 64]
   verbose: 0
@@ -95,6 +98,7 @@ train:
   eval_freq: 10000
   feature_extractor: "mlp"      # "mlp" | "transformer"
   transfer_weights: true        # Round k best seed → Round k+1 초기화 (논문 방식)
+  use_hmm: true                 # false면 HMM 없이 학습 (ablation). CLI --no-hmm로 덮어쓰기 가능
 
 # ----------------------------------------------------------
 # Transformer Feature Extractor (feature_extractor.py)

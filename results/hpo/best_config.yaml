@@ -1,0 +1,19 @@
+ppo:
+  policy: MlpPolicy
+  learning_rate: 0.0005987474910461401
+  gamma: 0.8754080944294064
+  gae_lambda: 0.8123598026672032
+  clip_range: 0.28226345557043153
+  ent_coef: 0.009290082543999545
+  n_steps: 2048
+  batch_size: 256
+  n_epochs: 2
+  net_arch:
+  - 256
+  - 256
+  verbose: 0
+_hpo_meta:
+  best_value: 8.153892550830493
+  best_trial_number: 2
+  n_trials_done: 14
+  study_name: ppo_round1
